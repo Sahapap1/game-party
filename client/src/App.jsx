@@ -12,16 +12,21 @@ function App() {
     if (phase !== 'waiting') return
     const bounds = event.currentTarget.getBoundingClientRect()
     const id = `player-${event.pointerId}-${Date.now()}-${Math.random()}`
-    const player = {
+    const position = {
       id,
       pointerId: event.pointerId,
       x: ((event.clientX - bounds.left) / bounds.width) * 100,
       y: ((event.clientY - bounds.top) / bounds.height) * 100,
-      color: COLORS[players.length % COLORS.length],
-      number: players.length + 1,
     }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    setPlayers((current) => [...current, player])
+    setPlayers((current) => {
+      const nextNumber = current.reduce((max, player) => Math.max(max, player.number), 0) + 1
+      return [...current, {
+        ...position,
+        color: COLORS[current.length % COLORS.length],
+        number: nextNumber,
+      }]
+    })
   }
 
   const releasePlayer = (event) => {
