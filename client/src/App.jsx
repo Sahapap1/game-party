@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const COLORS = ['#a3e635', '#38bdf8', '#fb7185', '#fbbf24', '#c084fc', '#2dd4bf', '#fb923c', '#f472b6']
 
@@ -9,6 +9,56 @@ function App() {
   const [countdown, setCountdown] = useState(5)
   const [targetId, setTargetId] = useState(null)
   const [removingId, setRemovingId] = useState(null)
+
+  const audioContextRef = useRef(null)
+  const winnerSoundPlayedRef = useRef(false)
+
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext
+      if (AudioContextClass) audioContextRef.current = new AudioContextClass()
+    }
+    if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume()
+    return audioContextRef.current
+  }
+
+  const playEliminationSound = () => {
+    const audio = getAudioContext()
+    if (!audio) return
+    const now = audio.currentTime
+    const oscillator = audio.createOscillator()
+    const gain = audio.createGain()
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(620, now)
+    oscillator.frequency.exponentialRampToValueAtTime(210, now + 0.22)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.018)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25)
+    oscillator.connect(gain)
+    gain.connect(audio.destination)
+    oscillator.start(now)
+    oscillator.stop(now + 0.26)
+  }
+
+  const playWinnerSound = () => {
+    const audio = getAudioContext()
+    if (!audio) return
+    const now = audio.currentTime
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+      const oscillator = audio.createOscillator()
+      const gain = audio.createGain()
+      const start = now + index * 0.13
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, start)
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.025)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42)
+      oscillator.connect(gain)
+      gain.connect(audio.destination)
+      oscillator.start(start)
+      oscillator.stop(start + 0.44)
+    })
+  }
 
   const addPlayer = (event) => {
     if (phase !== 'collecting' && phase !== 'countdown') return
@@ -40,6 +90,8 @@ function App() {
   }
 
   const startRound = () => {
+    getAudioContext()
+    winnerSoundPlayedRef.current = false
     setPlayers([])
     setTargetId(null)
     setRemovingId(null)
@@ -48,6 +100,7 @@ function App() {
   }
 
   const resetRound = () => {
+    winnerSoundPlayedRef.current = false
     setPlayers([])
     setRemovingId(null)
     setCountdown(5)
@@ -102,12 +155,20 @@ function App() {
   useEffect(() => {
     if (phase !== 'eliminating' || !removingId) return
     const timeout = window.setTimeout(() => {
+      playEliminationSound()
       setPlayers((current) => current.filter((player) => player.id !== removingId))
       setRemovingId(null)
       setTargetId(null)
     }, 720)
     return () => window.clearTimeout(timeout)
   }, [phase, removingId])
+
+  useEffect(() => {
+    if (phase === 'winner' && !winnerSoundPlayedRef.current) {
+      winnerSoundPlayedRef.current = true
+      playWinnerSound()
+    }
+  }, [phase])
 
   const winner = phase === 'winner' ? players[0] : null
 
@@ -153,42 +214,8 @@ function App() {
             onPointerCancel={releasePlayer}
             onLostPointerCapture={releasePlayer}
             onContextMenu={(event) => event.preventDefault()}>
-            {phase === 'eliminating' && (
-              <svg className="comet-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <path id="comet-orbit-path" d="M 50 8 C 76 8 93 25 93 50 C 93 75 76 92 50 92 C 24 92 7 75 7 50 C 7 25 24 8 50 8 Z" />
-                  <filter id="comet-glow" x="-200%" y="-200%" width="400%" height="400%">
-                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                </defs>
-                <g className="orbiting-comet" filter="url(#comet-glow)">
-                  <path d="M -12 0 L 0 0" className="comet-tail" />
-                  <circle r="1.5" className="comet-core" />
-                  <circle r="3.1" className="comet-halo" />
-                  <animateMotion dur="5.2s" rotate="auto" repeatCount="indefinite">
-                    <mpath href="#comet-orbit-path" />
-                  </animateMotion>
-                </g>
-                {targetId && (() => {
-                  const target = players.find((player) => player.id === targetId)
-                  if (!target) return null
-                  const controlX = (50 + target.x) / 2 + 9
-                  const controlY = (8 + target.y) / 2 - 8
-                  const flightPath = `M 50 8 Q ${controlX} ${controlY} ${target.x} ${target.y}`
-                  return (
-                    <g className="seeking-comet" filter="url(#comet-glow)">
-                      <path d="M -11 0 L 0 0" className="comet-tail" />
-                      <circle r="1.7" className="comet-core" />
-                      <circle r="3.4" className="comet-halo" />
-                      <animateMotion dur="0.95s" fill="freeze" rotate="auto" path={flightPath} />
-                    </g>
-                  )
-                })()}
-              </svg>
-            )}
             {players.map((player) => (
-              <div key={player.id} className={`player-dot ${targetId === player.id ? 'is-targeted' : ''} ${removingId === player.id ? 'is-eliminating' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
+              <div key={player.id} className={`player-dot ${removingId === player.id ? 'is-eliminating' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
                 style={{ left: `${player.x}%`, top: `${player.y}%`, '--dot-color': player.color }}>
                 <span>{player.number}</span>
               </div>
