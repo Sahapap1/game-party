@@ -115,7 +115,7 @@ function App() {
               <button className="game-card" onClick={() => { resetRound(); setScreen('last-dot') }}>
                 <div className="game-art"><span className="art-dot dot-one" /><span className="art-dot dot-two" /><span className="art-dot dot-three" /><span className="art-dot dot-four" /><span className="art-dot dot-five" /></div>
                 <div className="game-card-info">
-                  <div><span className="game-category">QUICK PARTY GAME</span><h2>Last Dot</h2><p>จิ้มค้างไว้ ใครเหลือจุดสุดท้ายเป็นผู้ชนะ</p></div>
+                  <div><span className="game-category">QUICK PARTY GAME</span><h2>Last Dot</h2><p>จิ้มค้างไว้ ใครเหลือจุดสุดท้ายต้องดื่ม</p></div>
                   <span className="play-arrow">↗</span>
                 </div>
               </button>
@@ -150,7 +150,7 @@ function App() {
             {phase === 'collecting' && <div className="center-prompt"><strong>ทุกคนแตะหน้าจอค้างไว้</strong><small>ต้องมีผู้เล่นอย่างน้อย 2 คน</small></div>}
             {phase === 'countdown' && <div className="countdown-overlay"><span>เริ่มใน</span><strong key={countdown}>{countdown}</strong><small>อย่าปล่อยนิ้วนะ!</small></div>}
             {phase === 'eliminating' && <div className="round-message">คลื่นพลังงานกำลังทำงาน…</div>}
-            {winner && <div className="winner-banner"><span>🏆</span><strong>PLAYER {winner.number} WINS!</strong><small>จุดสุดท้ายที่เหลืออยู่</small></div>}
+            {winner && <div className="winner-banner"><span>🏆</span><strong>PLAYER {winner.number} ต้องดื่ม!</strong><small>คนที่เหลืออยู่ต้องดื่ม</small></div>}
           </div>
 
           <div className="last-dot-bottom">
