@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import CardExchange from './games/card-exchange/CardExchange.jsx'
 
 const COLORS = ['#a3e635', '#38bdf8', '#fb7185', '#fbbf24', '#c084fc', '#2dd4bf', '#fb923c', '#f472b6']
 
@@ -195,12 +196,12 @@ function App() {
                   <span className="play-arrow">↗</span>
                 </div>
               </button>
-              <div className="empty-game-card"><span>✦</span><strong>More games coming soon</strong><p>เกมใหม่ ๆ จะเพิ่มเข้ามาที่นี่</p></div>
+              <button className="game-card card-exchange-home-card" onClick={() => setScreen('card-exchange')}><div className="card-game-art"><span>♠</span><b>♥</b><i>♦</i><em>♣</em></div><div className="game-card-info"><div><span className="game-category">MULTIPLAYER · SOCKET.IO</span><h2>Card Exchange</h2><p>แลกไพ่กับเพื่อน แล้วมาลุ้นว่าใครต่ำสุด</p></div><span className="play-arrow">↗</span></div></button>
             </div>
           </section>
           <footer className="footer"><span>GAME PARTY</span><span>Made for playing together.</span></footer>
         </>
-      ) : (
+      ) : screen === 'last-dot' ? (
         <section className="last-dot-screen">
           <div className="last-dot-top">
             <button className="back-button" onClick={() => { setScreen('home'); resetRound() }}>← กลับหน้าเกม</button>
@@ -241,6 +242,8 @@ function App() {
             {phase === 'winner' && <button className="primary-button" onClick={resetRound}>เล่นอีกครั้ง <span>↻</span></button>}
           </div>
         </section>
+      ) : (
+        <CardExchange onBack={() => setScreen('home')} />
       )}
     </main>
   )
