@@ -164,7 +164,7 @@ export function registerRoomHandlers(io, socket) {
     if (!playerName) return ack({ ok: false, message: 'กรุณาใส่ชื่อผู้เล่น' })
     if (room.players.length >= MAX_PLAYERS) return ack({ ok: false, message: `ห้องเต็มแล้ว (สูงสุด ${MAX_PLAYERS} คน)` })
     if (room.players.some((player) => player.name.toLowerCase() === playerName.toLowerCase())) return ack({ ok: false, message: 'ชื่อนี้มีคนใช้แล้วในห้อง' })
-    const player = { id: socket.id, token: randomUUID(), name: playerName, card: null, connected: true, confirmed: false, hasPlayed: false }
+    const player = { id: socket.id, token: randomUUID(), name: playerName, card: null, connected: true, hasPlayed: false }
     room.players.push(player)
     socket.join(id)
     ack({ ok: true, roomId: id, playerToken: player.token })
