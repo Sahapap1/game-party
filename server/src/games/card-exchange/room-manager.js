@@ -65,6 +65,20 @@ function error(socket, message, code = 'GAME_ERROR') {
   socket.emit('game:error', { message, code })
 }
 
+function finishGame(io, room) {
+  room.currentTurn = null
+  room.status = 'finished'
+  const cards = room.players.filter((player) => player.card)
+  const lowest = cards.length ? Math.min(...cards.map((player) => player.card.value)) : null
+  const highest = cards.length ? Math.max(...cards.map((player) => player.card.value)) : null
+  room.results = {
+    lowest: cards.filter((player) => player.card.value === lowest).map(({ id, name, card }) => ({ id, name, card })),
+    highest: cards.filter((player) => player.card.value === highest).map(({ id, name, card }) => ({ id, name, card })),
+  }
+  broadcastRoom(io, room)
+  io.to(room.id).emit('game:ended', room.results)
+}
+
 function advanceTurn(io, room) {
   clearPending(room)
   const current = room.players.find((player) => player.id === room.currentTurn)
@@ -83,17 +97,7 @@ function advanceTurn(io, room) {
     if (next) next.hasPlayed = true
   }
 
-  room.currentTurn = null
-  room.status = 'finished'
-  const cards = room.players.filter((player) => player.card)
-  const lowest = Math.min(...cards.map((player) => player.card.value))
-  const highest = Math.max(...cards.map((player) => player.card.value))
-  room.results = {
-    lowest: cards.filter((player) => player.card.value === lowest).map(({ id, name, card }) => ({ id, name, card })),
-    highest: cards.filter((player) => player.card.value === highest).map(({ id, name, card }) => ({ id, name, card })),
-  }
-  broadcastRoom(io, room)
-  io.to(room.id).emit('game:ended', room.results)
+  finishGame(io, room)
 }
 
 function removePlayer(io, room, player) {
@@ -125,6 +129,8 @@ function removePlayer(io, room, player) {
   if (room.players.length === 0) {
     clearTimeout(room.cleanupTimer)
     rooms.delete(room.id)
+  } else if (room.status === 'playing' && (room.players.length === 1 || (wasCurrent && !room.turnOrder.some((id) => room.players.some((entry) => entry.id === id && entry.connected && !entry.hasPlayed))))) {
+    finishGame(io, room)
   } else {
     broadcastRoom(io, room)
   }
