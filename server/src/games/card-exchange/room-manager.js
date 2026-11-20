@@ -36,7 +36,6 @@ function publicState(room, viewerId) {
       id: player.id,
       name: player.name,
       connected: player.connected,
-      confirmed: player.confirmed,
       hasPlayed: player.hasPlayed,
       card: reveal || player.id !== viewerId ? player.card : null,
     })),
@@ -144,7 +143,7 @@ export function registerRoomHandlers(io, socket) {
     const playerName = cleanName(name)
     if (!playerName) return ack({ ok: false, message: 'กรุณาใส่ชื่อผู้เล่น' })
     const id = createRoomId()
-    const player = { id: socket.id, token: randomUUID(), name: playerName, card: null, connected: true, confirmed: false, hasPlayed: false }
+    const player = { id: socket.id, token: randomUUID(), name: playerName, card: null, connected: true, hasPlayed: false }
     const room = {
       id, hostId: socket.id, players: [player], status: 'lobby',
       deck: [], discardPile: [], turnOrder: [], turnIndex: -1,
@@ -191,13 +190,16 @@ export function registerRoomHandlers(io, socket) {
     broadcastRoom(io, room)
   })
 
-  socket.on('player:confirm', (_payload, ack = () => {}) => {
+  socket.on('room:kick', ({ targetId } = {}, ack = () => {}) => {
     const room = [...rooms.values()].find((entry) => findPlayer(entry, socket.id))
-    const player = room && findPlayer(room, socket.id)
-    if (!room || room.status !== 'lobby' || !player) return ack({ ok: false, message: 'ไม่สามารถยืนยันผู้เล่นได้' })
-    player.confirmed = true
+    const target = room?.players.find((player) => player.id === targetId)
+    if (!room || room.hostId !== socket.id) return ack({ ok: false, message: 'เฉพาะ Host เท่านั้นที่เตะผู้เล่นได้' })
+    if (room.status !== 'lobby') return ack({ ok: false, message: 'สามารถเตะผู้เล่นได้เฉพาะตอนอยู่ในห้องรอ' })
+    if (!target || target.id === socket.id) return ack({ ok: false, message: 'ไม่สามารถเลือกผู้เล่นคนนี้ได้' })
+    io.to(target.id).emit('room:kicked')
+    io.in(target.id).socketsLeave(room.id)
+    removePlayer(io, room, target)
     ack({ ok: true })
-    broadcastRoom(io, room)
   })
 
   socket.on('game:start', (_payload, ack = () => {}) => {
@@ -205,7 +207,7 @@ export function registerRoomHandlers(io, socket) {
     if (!room || room.hostId !== socket.id) return ack({ ok: false, message: 'เฉพาะ Host เท่านั้นที่เริ่มเกมได้' })
     if (room.status !== 'lobby') return ack({ ok: false, message: 'เกมเริ่มไปแล้ว' })
     if (room.players.length < 2) return ack({ ok: false, message: 'ต้องมีผู้เล่นอย่างน้อย 2 คน' })
-    if (room.players.some((player) => !player.connected || !player.confirmed)) return ack({ ok: false, message: 'ผู้เล่นทุกคนต้องยืนยันชื่อและออนไลน์อยู่' })
+    if (room.players.some((player) => !player.connected)) return ack({ ok: false, message: 'ผู้เล่นทุกคนต้องออนไลน์อยู่' })
 
     const deck = shuffle(createDeck())
     room.players.forEach((player) => { player.card = deck.pop(); player.hasPlayed = false })

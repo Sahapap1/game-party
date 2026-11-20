@@ -81,6 +81,14 @@ function CardExchange({ onBack }) {
     client.on('exchange:completed', () => { setIncoming(null); setNotice('แลกไพ่สำเร็จ!') })
     client.on('game:started', () => { setNotice('แจกไพ่เรียบร้อย เริ่มเกม!'); setScreen('game') })
     client.on('game:ended', () => setScreen('results'))
+    client.on('room:kicked', () => {
+      clearSession()
+      setSession(null)
+      setRoom(null)
+      setIncoming(null)
+      setScreen('entry')
+      setErrorMessage('คุณถูก Host นำออกจากห้องแล้ว')
+    })
     client.on('game:error', ({ message }) => setErrorMessage(message))
     return () => client.disconnect()
   }, [])
@@ -107,12 +115,13 @@ function CardExchange({ onBack }) {
     setSession(nextSession); saveSession(nextSession); setScreen('lobby')
   }
 
-  const confirmName = async () => {
+  const kickPlayer = async (player) => {
+    if (!window.confirm(`ต้องการเตะ ${player.name} ออกจากห้องใช่ไหม?`)) return
     setBusy(true)
-    const response = await emit('player:confirm')
+    const response = await emit('room:kick', { targetId: player.id })
     setBusy(false)
-    if (!response?.ok) setErrorMessage(response?.message || 'ยืนยันชื่อไม่สำเร็จ')
-    else setNotice('ยืนยันชื่อเรียบร้อย รอ Host เริ่มเกม')
+    if (!response?.ok) setErrorMessage(response?.message || 'เตะผู้เล่นไม่สำเร็จ')
+    else setNotice(`นำ ${player.name} ออกจากห้องแล้ว`)
   }
 
   const startGame = async () => {
@@ -209,15 +218,14 @@ function CardExchange({ onBack }) {
             <p className="card-eyebrow">WAITING ROOM</p>
             <h1>ห้องของคุณ</h1>
             <button className="room-code-box" onClick={copyRoomId}><span>ROOM CODE</span><strong>{room.roomId}</strong><small>แตะเพื่อคัดลอกรหัส</small></button>
-            <div className="lobby-summary"><strong>{room.players.length}<small> / 12 PLAYERS</small></strong><span>{me?.confirmed ? 'ยืนยันชื่อแล้ว' : 'กรุณายืนยันชื่อเพื่อเข้าร่วม'}</span></div>
+            <div className="lobby-summary"><strong>{room.players.length}<small> / 12 PLAYERS</small></strong><span>ผู้เล่นในห้อง</span></div>
             <div className="lobby-player-list">
-              {room.players.map((player, index) => <div className="lobby-player" key={player.id}><span className="player-avatar">{player.name.slice(0, 1).toUpperCase()}</span><strong>{player.name}{player.id === room.hostId && <em>HOST</em>}{player.id === room.you && <small>YOU</small>}</strong><span className={player.connected ? 'player-online' : 'player-offline'}>{player.connected ? 'ONLINE' : 'OFFLINE'}</span><span className={player.confirmed ? 'confirm-check' : 'confirm-wait'}>{player.confirmed ? '✓' : '…'}</span></div>)}
+              {room.players.map((player) => <div className="lobby-player" key={player.id}><span className="player-avatar">{player.name.slice(0, 1).toUpperCase()}</span><strong>{player.name}{player.id === room.hostId && <em>HOST</em>}{player.id === room.you && <small>YOU</small>}</strong><span className={player.connected ? "player-online" : "player-offline"}>{player.connected ? "ONLINE" : "OFFLINE"}</span>{isHost && player.id !== room.you && <button className="kick-player-button" onClick={() => kickPlayer(player)} disabled={busy}>เตะ</button>}</div>)}
             </div>
             {errorMessage && <p className="card-error">{errorMessage}</p>}
             {notice && <p className="card-notice">{notice}</p>}
             <div className="lobby-actions">
-              {!me?.confirmed && <button className="card-primary-button" onClick={confirmName} disabled={busy}>ยืนยันชื่อของฉัน <span>✓</span></button>}
-              {isHost && <button className="card-primary-button" onClick={startGame} disabled={busy || room.players.length < 2 || room.players.some((player) => !player.confirmed || !player.connected)}>เริ่มเกม <span>→</span></button>}
+              {isHost && <button className="card-primary-button" onClick={startGame} disabled={busy || room.players.length < 2 || room.players.some((player) => !player.connected)}>เริ่มเกม <span>→</span></button>}
               {!isHost && <p className="card-muted">รอ Host กดเริ่มเกม...</p>}
               <button className="card-quiet-button" onClick={leaveRoom}>ออกจากห้อง</button>
             </div>
