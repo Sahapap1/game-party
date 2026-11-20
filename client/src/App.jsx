@@ -6,7 +6,7 @@ function App() {
   const [screen, setScreen] = useState('home')
   const [players, setPlayers] = useState([])
   const [phase, setPhase] = useState('waiting')
-  const [removingId, setRemovingId] = useState(null)
+  const [wave, setWave] = useState(null)
 
   const addPlayer = (event) => {
     if (phase !== 'waiting') return
@@ -40,32 +40,29 @@ function App() {
 
   const resetRound = () => {
     setPlayers([])
-    setRemovingId(null)
+    setWave(null)
     setPhase('waiting')
   }
 
   useEffect(() => {
-    if (phase !== 'eliminating') return
-    if (players.length <= 1) {
-      setPhase('winner')
-      return
-    }
-    if (removingId) {
-      const timeout = window.setTimeout(() => {
-        setPlayers((current) => current.filter((player) => player.id !== removingId))
-        setRemovingId(null)
-      }, 650)
-      return () => window.clearTimeout(timeout)
-    }
+    if (phase !== 'eliminating' || players.length < 2 || wave) return
+    const winner = players[Math.floor(Math.random() * players.length)]
+    setWave({ x: 15 + Math.random() * 70, y: 15 + Math.random() * 70, winnerId: winner.id })
+  }, [phase, players, wave])
+
+  useEffect(() => {
+    if (phase !== 'eliminating' || !wave) return
     const timeout = window.setTimeout(() => {
-      const candidates = players.filter((player) => player.id !== removingId)
-      const selected = candidates[Math.floor(Math.random() * candidates.length)]
-      if (selected) setRemovingId(selected.id)
-    }, 850 + Math.random() * 950)
+      setPlayers((current) => current.filter((player) => player.id === wave.winnerId))
+      setPhase('winner')
+      setWave(null)
+    }, 3300)
     return () => window.clearTimeout(timeout)
-  }, [phase, players, removingId])
+  }, [phase, wave])
 
   const winner = phase === 'winner' ? players[0] : null
+  const waveTargets = wave ? players.filter((player) => player.id !== wave.winnerId) : []
+  const maxWaveDistance = waveTargets.length ? Math.max(...waveTargets.map((player) => Math.hypot(player.x - wave.x, player.y - wave.y))) || 1 : 1
 
   return (
     <main className="party-shell">
@@ -101,7 +98,7 @@ function App() {
             <h1>Last <span>Dot.</span></h1>
             <p className="game-instruction">
               {phase === 'waiting' && 'ทุกคนแตะหน้าจอและกดค้างไว้ เพื่อวางจุดของตัวเอง'}
-              {phase === 'eliminating' && 'อย่ากะพริบตา! จุดกำลังถูกสุ่มคัดออก'}
+              {phase === 'eliminating' && 'คลื่นพลังงานกำลังแผ่ขยาย! ระวังให้ดี'}
               {phase === 'winner' && 'เรามีผู้ชนะแล้ว!'}
             </p>
           </div>
@@ -111,10 +108,11 @@ function App() {
             onPointerUp={releasePlayer}
             onPointerCancel={releasePlayer}
             onContextMenu={(event) => event.preventDefault()}>
-            <div className="play-area-top"><span>{phase === 'waiting' ? 'HOLD YOUR SPOT' : phase === 'eliminating' ? 'ELIMINATING…' : 'WINNER'}</span><strong>{players.length} <small>PLAYERS LEFT</small></strong></div>
+            <div className="play-area-top"><span>{phase === 'waiting' ? 'HOLD YOUR SPOT' : phase === 'eliminating' ? 'SHOCKWAVE INCOMING' : 'WINNER'}</span><strong>{players.length} <small>PLAYERS LEFT</small></strong></div>
+            {wave && <div className="shockwave" style={{ left: `${wave.x}%`, top: `${wave.y}%` }} />}
             {players.map((player) => (
-              <div key={player.id} className={`player-dot ${removingId === player.id ? 'is-removing' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
-                style={{ left: `${player.x}%`, top: `${player.y}%`, '--dot-color': player.color }}>
+              <div key={player.id} className={`player-dot ${wave && player.id !== wave.winnerId ? 'wave-target' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
+                style={{ left: `${player.x}%`, top: `${player.y}%`, '--dot-color': player.color, '--wave-delay': wave && player.id !== wave.winnerId ? `${(Math.hypot(player.x - wave.x, player.y - wave.y) / maxWaveDistance) * 2.1}s` : '0s' }}>
                 <span>{player.number}</span>
               </div>
             ))}
@@ -125,7 +123,7 @@ function App() {
           <div className="game-controls">
             <div className="player-count"><strong>{players.length}</strong><span>{players.length === 1 ? 'player holding' : 'players holding'}</span></div>
             {phase === 'waiting' && <button className="primary-button" disabled={players.length < 2} onClick={startRound}>เริ่มสุ่มผู้ชนะ <span>→</span></button>}
-            {phase === 'eliminating' && <div className="status-message"><span className="loading-pulse" /> กำลังสุ่มผู้ชนะ…</div>}
+            {phase === 'eliminating' && <div className="status-message"><span className="loading-pulse" /> คลื่นกำลังเคลื่อนที่…</div>}
             {phase === 'winner' && <button className="primary-button" onClick={resetRound}>เล่นอีกครั้ง <span>↻</span></button>}
           </div>
           {phase === 'waiting' && <p className="helper-note">ต้องมีอย่างน้อย 2 คน · ทุกคนต้องกดค้างไว้จนกว่าจะเริ่มสุ่ม</p>}
