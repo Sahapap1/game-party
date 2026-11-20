@@ -85,8 +85,7 @@ function App() {
     if (removingId) return
     const delay = 800 + Math.random() * 2700
     const timeout = window.setTimeout(() => {
-      const candidates = players.filter((player) => player.id !== (players[0]?.id && null))
-      const selected = candidates[Math.floor(Math.random() * candidates.length)]
+      const selected = players[Math.floor(Math.random() * players.length)]
       if (selected) setRemovingId(selected.id)
     }, delay)
     return () => window.clearTimeout(timeout)
