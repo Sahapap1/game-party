@@ -5,6 +5,13 @@ const rooms = new Map()
 const MAX_PLAYERS = 12
 const EXCHANGE_TIMEOUT_MS = 15_000
 const DISCONNECT_GRACE_MS = 60_000
+const AUTO_RETURN_MS = 6_000
+const SUIT_STRENGTH = { clubs: 1, diamonds: 2, hearts: 3, spades: 4 }
+
+function compareCards(a, b) {
+  if (a.value !== b.value) return a.value - b.value
+  return (SUIT_STRENGTH[a.suit] || 0) - (SUIT_STRENGTH[b.suit] || 0)
+}
 
 function cleanName(value) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 18) : ''
@@ -63,6 +70,22 @@ function broadcastRoom(io, room) {
   }
 }
 
+function resetRoundToLobby(io, room) {
+  clearTimeout(room.autoReturnTimer)
+  room.autoReturnTimer = null
+  room.status = 'lobby'
+  room.players.forEach((player) => { player.card = null; player.hasPlayed = false })
+  room.deck = []
+  room.discardPile = []
+  room.turnOrder = []
+  room.turnIndex = -1
+  room.currentTurn = null
+  room.pendingExchange = null
+  room.results = null
+  room.returnedPlayers = []
+  broadcastRoom(io, room)
+}
+
 function error(socket, message, code = 'GAME_ERROR') {
   socket.emit('game:error', { message, code })
 }
@@ -71,14 +94,19 @@ function finishGame(io, room) {
   room.currentTurn = null
   room.status = 'finished'
   const cards = room.players.filter((player) => player.card)
-  const lowest = cards.length ? Math.min(...cards.map((player) => player.card.value)) : null
-  const highest = cards.length ? Math.max(...cards.map((player) => player.card.value)) : null
+  const sorted = [...cards].sort((a, b) => compareCards(a.card, b.card))
+  const lowest = sorted[0]?.card
+  const highest = sorted[sorted.length - 1]?.card
   room.results = {
-    lowest: cards.filter((player) => player.card.value === lowest).map(({ id, name, card }) => ({ id, name, card })),
-    highest: cards.filter((player) => player.card.value === highest).map(({ id, name, card }) => ({ id, name, card })),
+    lowest: lowest ? sorted.filter((player) => compareCards(player.card, lowest) === 0).map(({ id, name, card }) => ({ id, name, card })) : [],
+    highest: highest ? sorted.filter((player) => compareCards(player.card, highest) === 0).map(({ id, name, card }) => ({ id, name, card })) : [],
   }
   broadcastRoom(io, room)
   io.to(room.id).emit('game:ended', room.results)
+  clearTimeout(room.autoReturnTimer)
+  room.autoReturnTimer = setTimeout(() => {
+    if (room.status === 'finished') resetRoundToLobby(io, room)
+  }, AUTO_RETURN_MS)
 }
 
 function advanceTurn(io, room) {
@@ -147,7 +175,7 @@ export function registerRoomHandlers(io, socket) {
     const room = {
       id, hostId: socket.id, players: [player], status: 'lobby',
       deck: [], discardPile: [], turnOrder: [], turnIndex: -1,
-      currentTurn: null, pendingExchange: null, results: null, returnedPlayers: [], cleanupTimer: null,
+      currentTurn: null, pendingExchange: null, results: null, returnedPlayers: [], cleanupTimer: null, autoReturnTimer: null,
     }
     rooms.set(id, room)
     socket.join(id)
@@ -290,19 +318,7 @@ export function registerRoomHandlers(io, socket) {
     if (!room.returnedPlayers.includes(socket.id)) room.returnedPlayers.push(socket.id)
     const connectedPlayers = room.players.filter((player) => player.connected)
     if (connectedPlayers.every((player) => room.returnedPlayers.includes(player.id))) {
-      room.status = 'lobby'
-      room.players.forEach((player) => {
-        player.card = null
-        player.hasPlayed = false
-      })
-      room.deck = []
-      room.discardPile = []
-      room.turnOrder = []
-      room.turnIndex = -1
-      room.currentTurn = null
-      room.pendingExchange = null
-      room.results = null
-      room.returnedPlayers = []
+      resetRoundToLobby(io, room)
     }
     ack({ ok: true })
     broadcastRoom(io, room)

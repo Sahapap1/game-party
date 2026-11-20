@@ -147,14 +147,6 @@ function CardExchange({ onBack }) {
     else setNotice('คุณเลือกใช้ไพ่ใบเดิม')
   }
 
-  const returnToRoom = async () => {
-    setBusy(true); setErrorMessage('')
-    const response = await emit('room:return-lobby')
-    setBusy(false)
-    if (!response?.ok) setErrorMessage(response?.message || 'กลับห้องไม่สำเร็จ')
-    else setNotice('กลับห้องแล้ว กำลังรอผู้เล่นคนอื่น')
-  }
-
   const requestExchange = async () => {
     if (!selectedTarget) return setErrorMessage('เลือกผู้เล่นที่ต้องการแลกไพ่ก่อน')
     setBusy(true); setErrorMessage('')
@@ -235,6 +227,7 @@ function CardExchange({ onBack }) {
         {screen === 'game' && room && (
           <section className="active-game">
             <div className="game-room-bar"><span>ROOM {room.roomId}</span><span>TURN {Math.min(room.turnNumber, room.totalTurns)} / {room.totalTurns}</span><span>{room.deckCount} CARDS LEFT</span></div>
+            <div className="suit-ranking"><span>ลำดับดอก</span><b>♠ โพดำ</b><i>›</i><b>♥ โพแดง</b><i>›</i><b>♦ ข้าวหลามตัด</b><i>›</i><b>♣ ดอกจิก</b></div>
             <div className="table-heading"><p className="card-eyebrow">LOOK AT EVERYONE ELSE</p><h1>{isMyTurn ? 'ถึงตาคุณแล้ว' : room.players.find((player) => player.id === room.currentTurn)?.name ? `ถึงตา ${room.players.find((player) => player.id === room.currentTurn).name}` : 'กำลังเล่น'}</h1><p className="card-muted">ไพ่ของคุณถูกซ่อนไว้ มีเพียงคนอื่นเท่านั้นที่เห็นไพ่ใบนี้</p></div>
             <div className="players-card-grid">
               {room.players.map((player) => <article className={`opponent-card ${player.id === room.currentTurn ? 'is-current' : ''} ${player.id === room.you ? 'is-you' : ''}`} key={player.id}>
@@ -255,9 +248,8 @@ function CardExchange({ onBack }) {
               <div className="turn-action-grid">
                 <div className="action-option"><div className="deck-stack"><CardFace hidden /></div><strong>เปลี่ยนจากกองกลาง</strong><p>สุ่มรับไพ่ใบใหม่โดยไม่เห็นหน้าไพ่</p><button className="card-primary-button" onClick={() => setShowDrawConfirm(true)}>เลือกกองกลาง <span>→</span></button></div>
                 <div className="action-option"><div className="swap-icon">⇄</div><strong>เปลี่ยนกับผู้เล่นอื่น</strong><p>เลือกคนที่ต้องการขอแลกไพ่</p><select value={selectedTarget} onChange={(event) => setSelectedTarget(event.target.value)}><option value="">เลือกผู้เล่น</option>{targetOptions.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select><button className="card-outline-button" onClick={requestExchange} disabled={!selectedTarget || busy}>ส่งคำขอแลก <span>→</span></button></div>
-              </div>
-              <button className="card-quiet-button keep-card-button" onClick={skipTurn} disabled={busy}>ไม่เปลี่ยนไพ่ · ใช้ใบเดิม</button>
-            </div>}
+                <div className="action-option keep-card-option"><div className="keep-card-icon">✓</div><strong>ใช้ไพ่ใบเดิม</strong><p>ไม่เปลี่ยนไพ่ แล้วส่งต่อเทิร์น</p><button className="card-outline-button" onClick={skipTurn} disabled={busy}>ไม่เปลี่ยนไพ่ <span>→</span></button></div>
+              </div>}
             {!isMyTurn && !room.pendingExchange && <p className="turn-waiting">รอให้ผู้เล่นปัจจุบันเลือกเปลี่ยนไพ่...</p>}
             {errorMessage && <p className="card-error">{errorMessage}</p>}
             {notice && <p className="card-notice">{notice}</p>}
@@ -273,8 +265,7 @@ function CardExchange({ onBack }) {
               <div className="result-group highest"><span>HIGHEST CARD</span><h2>ไพ่สูงสุด</h2>{room.results?.highest?.map((player) => <div className="result-player" key={player.id}><CardFace card={player.card} small /><div><strong>{player.name}</strong><small>{player.card.rank} {player.card.symbol}</small></div></div>)}</div>
             </div>
             <div className="all-cards-reveal"><h3>ไพ่ของทุกคน</h3><div className="reveal-grid">{room.players.map((player) => <div key={player.id}><CardFace card={player.card} small /><strong>{player.name}</strong></div>)}</div></div>
-            <button className="card-primary-button" onClick={returnToRoom} disabled={busy || room.youReturned}>{room.youReturned ? `กลับห้องแล้ว (${room.returnedPlayers}/${room.connectedPlayers})` : "กลับห้องเดิม"} <span>→</span></button>
-            <p className="card-muted">{room.youReturned ? "รอผู้เล่นคนอื่นกลับห้อง..." : "เมื่อทุกคนกลับมาแล้ว Host จะเริ่มรอบใหม่ได้"}</p>
+            <p className="card-muted auto-return-note">กำลังกลับเข้าห้องเดิมอัตโนมัติ...</p>
           </section>
         )}
       </div>
