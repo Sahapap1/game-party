@@ -7,6 +7,7 @@ function App() {
   const [players, setPlayers] = useState([])
   const [phase, setPhase] = useState('ready')
   const [countdown, setCountdown] = useState(5)
+  const [targetId, setTargetId] = useState(null)
   const [removingId, setRemovingId] = useState(null)
 
   const addPlayer = (event) => {
@@ -40,6 +41,7 @@ function App() {
 
   const startRound = () => {
     setPlayers([])
+    setTargetId(null)
     setRemovingId(null)
     setCountdown(5)
     setPhase('collecting')
@@ -82,20 +84,27 @@ function App() {
       if (players.length === 1) setPhase('winner')
       return
     }
-    if (removingId) return
+    if (targetId || removingId) return
     const delay = 800 + Math.random() * 2700
     const timeout = window.setTimeout(() => {
       const selected = players[Math.floor(Math.random() * players.length)]
-      if (selected) setRemovingId(selected.id)
+      if (selected) setTargetId(selected.id)
     }, delay)
     return () => window.clearTimeout(timeout)
-  }, [phase, players, removingId])
+  }, [phase, players, targetId, removingId])
+
+  useEffect(() => {
+    if (phase !== 'eliminating' || !targetId || removingId) return
+    const timeout = window.setTimeout(() => setRemovingId(targetId), 950)
+    return () => window.clearTimeout(timeout)
+  }, [phase, targetId, removingId])
 
   useEffect(() => {
     if (phase !== 'eliminating' || !removingId) return
     const timeout = window.setTimeout(() => {
       setPlayers((current) => current.filter((player) => player.id !== removingId))
       setRemovingId(null)
+      setTargetId(null)
     }, 720)
     return () => window.clearTimeout(timeout)
   }, [phase, removingId])
@@ -144,6 +153,16 @@ function App() {
             onPointerCancel={releasePlayer}
             onLostPointerCapture={releasePlayer}
             onContextMenu={(event) => event.preventDefault()}>
+            {targetId && (() => {
+              const target = players.find((player) => player.id === targetId)
+              if (!target) return null
+              return (
+                <svg className="seeker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <line className="seeker-line" x1="50" y1="50" x2={target.x} y2={target.y} />
+                  <circle className="seeker-orbit" cx={target.x} cy={target.y} r="4.5" />
+                </svg>
+              )
+            })()}
             {players.map((player) => (
               <div key={player.id} className={`player-dot ${removingId === player.id ? 'is-eliminating' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
                 style={{ left: `${player.x}%`, top: `${player.y}%`, '--dot-color': player.color }}>
