@@ -52,6 +52,9 @@ function publicState(room, viewerId) {
       isOutgoing: room.pendingExchange.fromId === viewerId,
     } : null,
     results: room.results,
+    youReturned: Boolean(room.returnedPlayers?.includes(viewerId)),
+    returnedPlayers: room.returnedPlayers?.length || 0,
+    connectedPlayers: room.players.filter((player) => player.connected).length,
   }
 }
 
@@ -145,7 +148,7 @@ export function registerRoomHandlers(io, socket) {
     const room = {
       id, hostId: socket.id, players: [player], status: 'lobby',
       deck: [], discardPile: [], turnOrder: [], turnIndex: -1,
-      currentTurn: null, pendingExchange: null, results: null, cleanupTimer: null,
+      currentTurn: null, pendingExchange: null, results: null, returnedPlayers: [], cleanupTimer: null,
     }
     rooms.set(id, room)
     socket.join(id)
@@ -213,10 +216,18 @@ export function registerRoomHandlers(io, socket) {
     room.currentTurn = room.turnOrder[0]
     room.status = 'playing'
     room.results = null
+    room.returnedPlayers = []
     ack({ ok: true })
     io.to(room.id).emit('game:started')
     broadcastRoom(io, room)
     io.to(room.id).emit('turn:changed', { playerId: room.currentTurn })
+  })
+
+  socket.on('turn:skip', (_payload, ack = () => {}) => {
+    const room = [...rooms.values()].find((entry) => findPlayer(entry, socket.id))
+    if (!room || room.status !== 'playing' || room.currentTurn !== socket.id || room.pendingExchange) return ack({ ok: false, message: 'ยังไม่ใช่เทิร์นของคุณ' })
+    ack({ ok: true })
+    advanceTurn(io, room)
   })
 
   socket.on('turn:draw', (_payload, ack = () => {}) => {
@@ -269,6 +280,30 @@ export function registerRoomHandlers(io, socket) {
       io.to(requester.id).emit('exchange:rejected', { targetName: target.name })
       broadcastRoom(io, room)
     }
+  })
+
+  socket.on('room:return-lobby', (_payload, ack = () => {}) => {
+    const room = [...rooms.values()].find((entry) => findPlayer(entry, socket.id))
+    if (!room || room.status !== 'finished') return ack({ ok: false, message: 'เกมยังไม่จบ' })
+    if (!room.returnedPlayers.includes(socket.id)) room.returnedPlayers.push(socket.id)
+    const connectedPlayers = room.players.filter((player) => player.connected)
+    if (connectedPlayers.every((player) => room.returnedPlayers.includes(player.id))) {
+      room.status = 'lobby'
+      room.players.forEach((player) => {
+        player.card = null
+        player.hasPlayed = false
+      })
+      room.deck = []
+      room.discardPile = []
+      room.turnOrder = []
+      room.turnIndex = -1
+      room.currentTurn = null
+      room.pendingExchange = null
+      room.results = null
+      room.returnedPlayers = []
+    }
+    ack({ ok: true })
+    broadcastRoom(io, room)
   })
 
   socket.on('room:leave', (_payload, ack = () => {}) => {
