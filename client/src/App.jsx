@@ -153,18 +153,42 @@ function App() {
             onPointerCancel={releasePlayer}
             onLostPointerCapture={releasePlayer}
             onContextMenu={(event) => event.preventDefault()}>
-            {targetId && (() => {
-              const target = players.find((player) => player.id === targetId)
-              if (!target) return null
-              return (
-                <svg className="seeker-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <line className="seeker-line" x1="50" y1="50" x2={target.x} y2={target.y} />
-                  <circle className="seeker-orbit" cx={target.x} cy={target.y} r="4.5" />
-                </svg>
-              )
-            })()}
+            {phase === 'eliminating' && (
+              <svg className="comet-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <path id="comet-orbit-path" d="M 50 8 C 76 8 93 25 93 50 C 93 75 76 92 50 92 C 24 92 7 75 7 50 C 7 25 24 8 50 8 Z" />
+                  <filter id="comet-glow" x="-200%" y="-200%" width="400%" height="400%">
+                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+                <g className="orbiting-comet" filter="url(#comet-glow)">
+                  <path d="M -12 0 L 0 0" className="comet-tail" />
+                  <circle r="1.5" className="comet-core" />
+                  <circle r="3.1" className="comet-halo" />
+                  <animateMotion dur="5.2s" rotate="auto" repeatCount="indefinite">
+                    <mpath href="#comet-orbit-path" />
+                  </animateMotion>
+                </g>
+                {targetId && (() => {
+                  const target = players.find((player) => player.id === targetId)
+                  if (!target) return null
+                  const controlX = (50 + target.x) / 2 + 9
+                  const controlY = (8 + target.y) / 2 - 8
+                  const flightPath = `M 50 8 Q ${controlX} ${controlY} ${target.x} ${target.y}`
+                  return (
+                    <g className="seeking-comet" filter="url(#comet-glow)">
+                      <path d="M -11 0 L 0 0" className="comet-tail" />
+                      <circle r="1.7" className="comet-core" />
+                      <circle r="3.4" className="comet-halo" />
+                      <animateMotion dur="0.95s" fill="freeze" rotate="auto" path={flightPath} />
+                    </g>
+                  )
+                })()}
+              </svg>
+            )}
             {players.map((player) => (
-              <div key={player.id} className={`player-dot ${removingId === player.id ? 'is-eliminating' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
+              <div key={player.id} className={`player-dot ${targetId === player.id ? 'is-targeted' : ''} ${removingId === player.id ? 'is-eliminating' : ''} ${winner?.id === player.id ? 'is-winner' : ''}`}
                 style={{ left: `${player.x}%`, top: `${player.y}%`, '--dot-color': player.color }}>
                 <span>{player.number}</span>
               </div>
