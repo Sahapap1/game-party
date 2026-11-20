@@ -178,7 +178,7 @@ function CardExchange({ onBack }) {
               <button className={mode === 'join' ? 'active' : ''} onClick={() => setMode('join')}>เข้าร่วมห้อง</button>
             </div>
             <div className="card-form">
-              {mode === 'join' && <label>เลขห้อง<input value={roomIdInput} onChange={(event) => setRoomIdInput(event.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="เช่น 482193" inputMode="numeric" maxLength={6} /></label>}
+              {mode === 'join' && <label>เลขห้อง<input value={roomIdInput} onChange={(event) => setRoomIdInput(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="เช่น 482193" inputMode="numeric" maxLength={6} /></label>}
               <label>ชื่อของคุณ<input value={name} onChange={(event) => setName(event.target.value)} placeholder="ใส่ชื่อเล่น" maxLength={18} onKeyDown={(event) => event.key === 'Enter' && enterRoom()} /></label>
               <button className="card-primary-button" onClick={enterRoom} disabled={busy || connection !== 'connected' || !name.trim() || (mode === 'join' && roomIdInput.length !== 6)}>{busy ? 'กำลังดำเนินการ...' : mode === 'create' ? 'สร้างห้อง' : 'เข้าร่วมห้อง'} <span>→</span></button>
             </div>

@@ -7,7 +7,7 @@ const EXCHANGE_TIMEOUT_MS = 15_000
 const DISCONNECT_GRACE_MS = 60_000
 
 function cleanName(value) {
-  return typeof value === 'string' ? value.trim().replace(/\\s+/g, ' ').slice(0, 18) : ''
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 18) : ''
 }
 
 function createRoomId() {
