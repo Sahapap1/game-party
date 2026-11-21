@@ -13,12 +13,12 @@ export default function Werewolf({ onBack }) {
   const [screen, setScreen] = useState('entry'), [mode, setMode] = useState('host')
   const [name, setName] = useState(''), [code, setCode] = useState('')
   const [room, setRoom] = useState(null), [busy, setBusy] = useState(false)
-  const [error, setError] = useState(''), [notice, setNotice] = useState('')
+  const [error, setError] = useState(''), [notice, setNotice] = useState(''), [roleCardDismissed, setRoleCardDismissed] = useState(false)
   useEffect(() => {
     const s = io(URL, { transports: ['websocket', 'polling'], reconnection: true }); setSocket(s)
     s.on('connect', () => { setConnected(true); const old = saved(); if (old?.roomId && old?.token) s.emit('werewolf:session:rejoin', old, (r) => { if (r?.ok) setScreen('room'); else clear() }) })
     s.on('disconnect', () => setConnected(false))
-    s.on('werewolf:state', (r) => { setRoom(r); setScreen(r.status === 'lobby' ? 'room' : 'game') })
+    s.on('werewolf:state', (r) => { setRoom(r); setScreen(previous => { if (previous === 'room' && r.status === 'playing') setRoleCardDismissed(false); return r.status === 'lobby' ? 'room' : 'game' }) })
     s.on('werewolf:room:closed', () => { clear(); setRoom(null); setScreen('entry'); setError('หัวห้องปิดห้องแล้ว') })
     s.on('werewolf:host:offline', () => setNotice('หัวห้องหลุดการเชื่อมต่อ'))
     return () => s.disconnect()
@@ -80,6 +80,7 @@ export default function Werewolf({ onBack }) {
         {room.phase === 'finished' && <div className="ww-summary"><div className="ww-role-art">{room.winner === 'หมาป่า' ? '🐺' : '🏡'}</div><h2>ฝ่าย{room.winner}ชนะ!</h2><div className="ww-role-grid">{room.allRoles?.map(p => <div className="ww-role-item" key={p.id}><span>{p.role.emoji}</span><strong>{p.name} · {p.role.name}</strong></div>)}</div><button className="ww-primary" onClick={leave}>กลับหน้าเกม</button></div>}
         {room.phase !== 'finished' && <div className="ww-role-grid">{room.allRoles?.map(p => <div className={`ww-role-item ${p.alive ? '' : 'ww-dead'}`} key={p.id}><span>{p.role.emoji}</span><div><strong>{p.name}</strong><p>{p.role.name}</p></div></div>)}</div>}
       </> : <>
+        {room.ownRole && !roleCardDismissed && <div className="ww-role-reveal"><div className="ww-role-card"><div className="ww-role-art">{room.ownRole.emoji}</div><p className="ww-phase">YOUR SECRET ROLE</p><h2>{room.ownRole.name}</h2><p>{room.ownRole.description}</p><small>เก็บบทบาทนี้เป็นความลับ</small><button className="ww-primary" onClick={() => setRoleCardDismissed(true)}>เข้าใจแล้ว · เริ่มเกม</button></div></div>}
         {room.voteResult && <p className="ww-notice">ผลการตัดสิน: {room.voteResult.text}</p>}
         <h1>{room.phase === 'night' ? 'หลับตา... 🌙' : room.phase === 'morning' ? 'รุ่งเช้าแล้ว ☀️' : room.phase === 'discussion' ? 'ช่วงพูดคุย' : 'จบเกม'}</h1>
         {room.ownRole && <div className="ww-role-card"><div className="ww-role-art">{room.ownRole.emoji}</div><p className="ww-phase">YOUR SECRET ROLE</p><h2>{room.ownRole.name}</h2><p>{room.ownRole.description}</p><small>เก็บบทบาทนี้เป็นความลับ</small></div>}
