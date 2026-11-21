@@ -41,8 +41,6 @@ function CardExchange({ onBack }) {
   const [busy, setBusy] = useState(false)
   const [selectedTarget, setSelectedTarget] = useState('')
   const [notice, setNotice] = useState('')
-  const [incoming, setIncoming] = useState(null)
-  const [showDrawConfirm, setShowDrawConfirm] = useState(false)
 
   useEffect(() => {
     const client = io(SOCKET_URL, { transports: ['websocket', 'polling'], reconnection: true })
@@ -67,25 +65,17 @@ function CardExchange({ onBack }) {
     client.on('connect_error', () => setConnection('disconnected'))
     client.on('room:state', (state) => {
       setRoom(state)
-      if (state.pendingExchange?.isIncoming) {
-        const requester = state.players.find((player) => player.id === state.pendingExchange.fromId)
-        if (requester) setIncoming({ fromId: requester.id, fromName: requester.name, expiresAt: state.pendingExchange.expiresAt })
-      } else if (!state.pendingExchange?.isIncoming) setIncoming(null)
       if (state.status === 'playing') setScreen('game')
       if (state.status === 'finished') setScreen('results')
       if (state.status === 'lobby' && sessionStorage.getItem(STORAGE_KEY)) setScreen('lobby')
     })
-    client.on('exchange:incoming', (request) => setIncoming(request))
-    client.on('exchange:rejected', ({ targetName }) => setNotice(`${targetName} ปฏิเสธการแลกไพ่ ลองเลือกใหม่ได้เลย`))
-    client.on('exchange:timeout', ({ message }) => { setIncoming(null); setNotice(message) })
-    client.on('exchange:completed', () => { setIncoming(null); setNotice('แลกไพ่สำเร็จ!') })
+    client.on('exchange:completed', ({ fromId, fromName, toName }) => setNotice(`${fromId === socket?.id ? toName : fromName} แลกไพ่สำเร็จ!`))
     client.on('game:started', () => { setNotice('แจกไพ่เรียบร้อย เริ่มเกม!'); setScreen('game') })
     client.on('game:ended', () => setScreen('results'))
     client.on('room:kicked', () => {
       clearSession()
       setSession(null)
       setRoom(null)
-      setIncoming(null)
       setScreen('entry')
       setErrorMessage('คุณถูก Host นำออกจากห้องแล้ว')
     })
@@ -152,21 +142,13 @@ function CardExchange({ onBack }) {
     setBusy(true); setErrorMessage('')
     const response = await emit('exchange:request', { targetId: selectedTarget })
     setBusy(false)
-    if (!response?.ok) setErrorMessage(response?.message || 'ส่งคำขอไม่สำเร็จ')
-    else setNotice('ส่งคำขอแล้ว กำลังรออีกฝ่ายยืนยัน')
-  }
-
-  const respondExchange = async (accept) => {
-    setBusy(true); setErrorMessage('')
-    const response = await emit('exchange:respond', { accept })
-    setBusy(false); setIncoming(null)
-    if (!response?.ok) setErrorMessage(response?.message || 'ส่งคำตอบไม่สำเร็จ')
-    else setNotice(accept ? 'คุณยืนยันการแลกไพ่แล้ว' : 'คุณปฏิเสธการแลกไพ่แล้ว')
+    if (!response?.ok) setErrorMessage(response?.message || 'แลกไพ่ไม่สำเร็จ')
+    else { setSelectedTarget(''); setNotice('แลกไพ่สำเร็จ!') }
   }
 
   const leaveRoom = async () => {
     await emit('room:leave')
-    clearSession(); setSession(null); setRoom(null); setIncoming(null); setScreen('entry'); setErrorMessage(''); setNotice('')
+    clearSession(); setSession(null); setRoom(null); setScreen('entry'); setErrorMessage(''); setNotice('')
   }
 
   const copyRoomId = async () => {
@@ -240,21 +222,18 @@ function CardExchange({ onBack }) {
               </article>)}
             </div>
 
-            {room.pendingExchange?.isOutgoing && <div className="waiting-exchange"><span className="waiting-spinner" />กำลังรออีกฝ่ายตอบรับคำขอแลกไพ่...</div>}
-            {incoming && <div className="exchange-modal-backdrop"><div className="exchange-modal"><p className="card-eyebrow">EXCHANGE REQUEST</p><h2>{incoming.fromName}</h2><p>ต้องการแลกไพ่กับคุณ</p><div className="modal-actions"><button className="card-primary-button" onClick={() => respondExchange(true)} disabled={busy}>ยืนยันแลก <span>✓</span></button><button className="card-quiet-button" onClick={() => respondExchange(false)} disabled={busy}>ไม่เปลี่ยน</button></div></div></div>}
 
-            {isMyTurn && !room.pendingExchange && <div className="turn-action-panel">
+            {isMyTurn && <div className="turn-action-panel">
               <p className="card-eyebrow">YOUR MOVE</p><h2>คุณจะเปลี่ยนไพ่แบบไหน?</h2>
               <div className="turn-action-grid">
-                <div className="action-option"><div className="deck-stack"><CardFace hidden /></div><strong>เปลี่ยนจากกองกลาง</strong><p>สุ่มรับไพ่ใบใหม่โดยไม่เห็นหน้าไพ่</p><button className="card-primary-button" onClick={() => setShowDrawConfirm(true)}>เลือกกองกลาง <span>→</span></button></div>
-                <div className="action-option"><div className="swap-icon">⇄</div><strong>เปลี่ยนกับผู้เล่นอื่น</strong><p>เลือกคนที่ต้องการขอแลกไพ่</p><select value={selectedTarget} onChange={(event) => setSelectedTarget(event.target.value)}><option value="">เลือกผู้เล่น</option>{targetOptions.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select><button className="card-outline-button" onClick={requestExchange} disabled={!selectedTarget || busy}>ส่งคำขอแลก <span>→</span></button></div>
+                <div className="action-option"><div className="deck-stack"><CardFace hidden /></div><strong>เปลี่ยนจากกองกลาง</strong><p>สุ่มรับไพ่ใบใหม่โดยไม่เห็นหน้าไพ่</p><button className="card-primary-button" onClick={drawCard} disabled={busy}>เลือกกองกลาง <span>→</span></button></div>
+                <div className="action-option"><div className="swap-icon">⇄</div><strong>เปลี่ยนกับผู้เล่นอื่น</strong><p>เลือกคนที่ต้องการขอแลกไพ่</p><select value={selectedTarget} onChange={(event) => setSelectedTarget(event.target.value)}><option value="">เลือกผู้เล่น</option>{targetOptions.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select><button className="card-outline-button" onClick={requestExchange} disabled={!selectedTarget || busy}>แลกทันที <span>→</span></button></div>
                 <div className="action-option keep-card-option"><div className="keep-card-icon">✓</div><strong>ใช้ไพ่ใบเดิม</strong><p>ไม่เปลี่ยนไพ่ แล้วส่งต่อเทิร์น</p><button className="card-outline-button" onClick={skipTurn} disabled={busy}>ไม่เปลี่ยนไพ่ <span>→</span></button></div>
               </div>
             </div>}
-            {!isMyTurn && !room.pendingExchange && <p className="turn-waiting">รอให้ผู้เล่นปัจจุบันเลือกเปลี่ยนไพ่...</p>}
+            {!isMyTurn && <p className="turn-waiting">รอให้ผู้เล่นปัจจุบันเลือกเปลี่ยนไพ่...</p>}
             {errorMessage && <p className="card-error">{errorMessage}</p>}
             {notice && <p className="card-notice">{notice}</p>}
-            {showDrawConfirm && <div className="exchange-modal-backdrop"><div className="exchange-modal"><p className="card-eyebrow">DRAW FROM DECK</p><h2>ยืนยันเปลี่ยนไพ่?</h2><p>ไพ่ปัจจุบันของคุณจะถูกทิ้ง และรับไพ่ใบบนสุดจากกองกลาง โดยคุณจะไม่เห็นหน้าไพ่</p><div className="modal-actions"><button className="card-primary-button" onClick={drawCard} disabled={busy}>ยืนยัน <span>✓</span></button><button className="card-quiet-button" onClick={() => setShowDrawConfirm(false)}>ย้อนกลับ</button></div></div></div>}
           </section>
         )}
 

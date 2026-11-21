@@ -277,38 +277,13 @@ export function registerRoomHandlers(io, socket) {
   socket.on('exchange:request', ({ targetId } = {}, ack = () => {}) => {
     const room = [...rooms.values()].find((entry) => findPlayer(entry, socket.id))
     const target = room?.players.find((player) => player.id === targetId)
-    if (!room || room.status !== 'playing' || room.currentTurn !== socket.id || room.pendingExchange) return ack({ ok: false, message: 'ยังไม่ใช่เทิร์นของคุณ' })
+    if (!room || room.status !== 'playing' || room.currentTurn !== socket.id) return ack({ ok: false, message: 'ยังไม่ใช่เทิร์นของคุณ' })
     if (!target || !target.connected || target.id === socket.id) return ack({ ok: false, message: 'ไม่สามารถเลือกผู้เล่นคนนี้ได้' })
-    room.pendingExchange = { fromId: socket.id, toId: target.id, expiresAt: Date.now() + EXCHANGE_TIMEOUT_MS, timer: null }
-    room.pendingExchange.timer = setTimeout(() => {
-      if (room.pendingExchange?.fromId !== socket.id || room.pendingExchange?.toId !== target.id) return
-      clearPending(room)
-      io.to(socket.id).emit('exchange:timeout', { message: 'หมดเวลารอการตอบรับ ลองเลือกใหม่ได้เลย' })
-      broadcastRoom(io, room)
-    }, EXCHANGE_TIMEOUT_MS)
-    ack({ ok: true })
-    io.to(target.id).emit('exchange:incoming', { fromId: socket.id, fromName: findPlayer(room, socket.id)?.name, expiresAt: room.pendingExchange.expiresAt })
-    broadcastRoom(io, room)
-  })
-
-  socket.on('exchange:respond', ({ accept } = {}, ack = () => {}) => {
-    const room = [...rooms.values()].find((entry) => findPlayer(entry, socket.id))
-    const pending = room?.pendingExchange
-    if (!room || room.status !== 'playing' || !pending || pending.toId !== socket.id) return ack({ ok: false, message: 'ไม่มีคำขอแลกไพ่ที่รอคุณอยู่' })
-    const requester = room.players.find((player) => player.id === pending.fromId)
-    const target = findPlayer(room, socket.id)
-    if (!requester || !target) return ack({ ok: false, message: 'ผู้เล่นไม่อยู่ในห้องแล้ว' })
-    clearPending(room)
-    if (accept === true) {
-      ;[requester.card, target.card] = [target.card, requester.card]
-      ack({ ok: true, accepted: true })
-      io.to(room.id).emit('exchange:completed', { fromId: requester.id, toId: target.id })
-      advanceTurn(io, room)
-    } else {
-      ack({ ok: true, accepted: false })
-      io.to(requester.id).emit('exchange:rejected', { targetName: target.name })
-      broadcastRoom(io, room)
-    }
+    const requester = findPlayer(room, socket.id)
+    ;[requester.card, target.card] = [target.card, requester.card]
+    ack({ ok: true, exchanged: true })
+    io.to(room.id).emit('exchange:completed', { fromId: requester.id, fromName: requester.name, toId: target.id, toName: target.name })
+    advanceTurn(io, room)
   })
 
   socket.on('room:return-lobby', (_payload, ack = () => {}) => {
