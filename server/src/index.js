@@ -5,6 +5,7 @@ import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
 import { registerRoomHandlers } from './games/card-exchange/room-manager.js'
+import { registerWerewolfHandlers } from './games/werewolf/room-manager.js'
 
 const PORT = Number(process.env.PORT) || 3001
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN
@@ -54,6 +55,7 @@ const io = new Server(httpServer, {
 io.on('connection', (socket) => {
   console.log(`[socket] connected: ${socket.id}`)
   registerRoomHandlers(io, socket)
+  registerWerewolfHandlers(io, socket)
   socket.on('disconnect', (reason) => console.log(`[socket] disconnected: ${socket.id} (${reason})`))
 })
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import CardExchange from './games/card-exchange/CardExchange.jsx'
+import Werewolf from './games/werewolf/Werewolf.jsx'
 
 const COLORS = ['#a3e635', '#38bdf8', '#fb7185', '#fbbf24', '#c084fc', '#2dd4bf', '#fb923c', '#f472b6']
 
@@ -197,6 +198,7 @@ function App() {
                 </div>
               </button>
               <button className="game-card card-exchange-home-card" onClick={() => setScreen('card-exchange')}><div className="card-game-art"><span>♠</span><b>♥</b><i>♦</i><em>♣</em></div><div className="game-card-info"><div><span className="game-category">MULTIPLAYER · SOCKET.IO</span><h2>Card Exchange</h2><p>แลกไพ่กับเพื่อน แล้วมาลุ้นว่าใครต่ำสุด</p></div><span className="play-arrow">↗</span></div></button>
+              <button className="game-card werewolf-home-card" onClick={() => setScreen('werewolf')}><div className="werewolf-game-art"><span>🐺</span><i>🌙</i><b>✦</b></div><div className="game-card-info"><div><span className="game-category">SOCIAL DEDUCTION · MULTIPLAYER</span><h2>Werewolf</h2><p>ตามหาหมาป่าก่อนที่ทุกคนจะกลายเป็นเหยื่อ</p></div><span className="play-arrow">↗</span></div></button>
             </div>
           </section>
           <footer className="footer"><span>GAME PARTY</span><span>Made for playing together.</span></footer>
@@ -242,8 +244,10 @@ function App() {
             {phase === 'winner' && <button className="primary-button" onClick={resetRound}>เล่นอีกครั้ง <span>↻</span></button>}
           </div>
         </section>
-      ) : (
+      ) : screen === 'card-exchange' ? (
         <CardExchange onBack={() => setScreen('home')} />
+      ) : (
+        <Werewolf onBack={() => setScreen('home')} />
       )}
     </main>
   )
