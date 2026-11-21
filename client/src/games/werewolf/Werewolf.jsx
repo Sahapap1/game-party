@@ -84,7 +84,7 @@ export default function Werewolf({ onBack }) {
         {room.voteResult && <p className="ww-notice">ผลการตัดสิน: {room.voteResult.text}</p>}
         <h1>{room.phase === 'night' ? 'หลับตา... 🌙' : room.phase === 'morning' ? 'รุ่งเช้าแล้ว ☀️' : room.phase === 'discussion' ? 'ช่วงพูดคุย' : 'จบเกม'}</h1>
         {room.ownRole && <div className="ww-role-card"><div className="ww-role-art">{room.ownRole.emoji}</div><p className="ww-phase">YOUR SECRET ROLE</p><h2>{room.ownRole.name}</h2><p>{room.ownRole.description}</p><small>เก็บบทบาทนี้เป็นความลับ</small></div>}
-        {room.phase === 'morning' && <div className="ww-summary"><strong>{room.morningSummary?.text}</strong><p className="ww-secret">ไม่มีการเปิดเผยบทบาทของผู้เสียชีวิต</p></div>}
+        {room.phase === 'morning' && <div className="ww-summary"><strong>{room.morningSummary?.text}</strong><p className="ww-secret">ไม่มีการเปิดเผยบทบาทของผู้เสียชีวิต</p>{room.seerResult && <div className="ww-seer-result"><p>ผลการตรวจสอบของคุณ</p><strong>{room.seerResult.playerName}</strong><div className={room.seerResult.isWerewolf ? 'ww-seer-bad' : 'ww-seer-good'}>{room.seerResult.isWerewolf ? '👎 เป็นฝ่ายหมาป่า' : '👍 เป็นฝ่ายดี'}</div></div>}</div>}
         {room.phase === 'discussion' && <p className="ww-muted">พูดคุยและหาคนที่น่าสงสัย รอหัวห้องประกาศผล</p>}
         {room.phase === 'finished' && <div className="ww-summary"><h2>ฝ่าย{room.winner}ชนะ!</h2><p>บทบาทของผู้เล่นยังเป็นความลับสำหรับผู้เล่น</p></div>}
         <div className="ww-player-list">{players.map(p => <div className={`ww-player ${p.alive ? '' : 'ww-dead'}`} key={p.id}><span className="ww-avatar">{p.name.slice(0, 1)}</span><strong>{p.name}</strong><small>{p.alive ? 'ALIVE' : 'OUT'}</small></div>)}</div>

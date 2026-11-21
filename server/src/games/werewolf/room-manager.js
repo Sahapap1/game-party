@@ -22,7 +22,9 @@ function state(r, id) {
     ownRole: host || !me ? null : roles[me.role],
     allRoles: host ? r.players.map(p => ({ id: p.id, name: p.name, role: roles[p.role], alive: p.alive })) : null,
     nightStep: r.nightStep, nightSteps: steps(r), morningSummary: r.morningSummary,
-    investigation: host ? r.investigation : null, voteResult: r.voteResult, winner: r.winner,
+    investigation: host ? r.investigation : null,
+    seerResult: !host && me?.role === 'seer' && r.investigation ? { playerName: r.investigation.playerName, isWerewolf: r.investigation.isWerewolf } : null,
+    voteResult: r.voteResult, winner: r.winner,
   }
 }
 function broadcast(io, r) {
@@ -85,7 +87,7 @@ export function registerWerewolfHandlers(io, socket) {
     const victim = player(r, r.actions.werewolf), saved = victim && victim.id === r.actions.bodyguard
     if (victim && !saved) victim.alive = false
     r.morningSummary = victim && !saved ? { text: 'เมื่อคืน ' + victim.name + ' เสียชีวิต', deadPlayer: victim.name } : { text: 'เมื่อคืนไม่มีผู้เสียชีวิต', deadPlayer: null }
-    const seen = player(r, r.actions.seer); r.investigation = seen ? { playerName: seen.name, role: roles[seen.role] } : null
+    const seen = player(r, r.actions.seer); r.investigation = seen ? { playerName: seen.name, role: roles[seen.role], isWerewolf: seen.role === 'werewolf' } : null
     r.phase = 'morning'; r.nightStep = null; r.winner = winner(r)
     if (r.winner) { r.phase = 'finished'; r.status = 'finished' }
     ack({ ok: true }); broadcast(io, r)
