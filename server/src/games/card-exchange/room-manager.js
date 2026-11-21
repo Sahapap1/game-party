@@ -150,7 +150,6 @@ function removePlayer(io, room, player) {
       room.turnIndex = room.turnOrder.indexOf(next)
     } else {
       room.currentTurn = null
-      room.status = 'finished'
     }
   } else if ((wasTarget || wasRequester) && room.status === 'playing') {
     room.currentTurn = room.pendingExchange?.fromId || room.currentTurn
