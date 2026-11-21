@@ -80,6 +80,7 @@ export default function Werewolf({ onBack }) {
         {room.phase === 'finished' && <div className="ww-summary"><div className="ww-role-art">{room.winner === 'หมาป่า' ? '🐺' : '🏡'}</div><h2>ฝ่าย{room.winner}ชนะ!</h2><div className="ww-role-grid">{room.allRoles?.map(p => <div className="ww-role-item" key={p.id}><span>{p.role.emoji}</span><strong>{p.name} · {p.role.name}</strong></div>)}</div><button className="ww-primary" onClick={leave}>กลับหน้าเกม</button></div>}
         {room.phase !== 'finished' && <div className="ww-role-grid">{room.allRoles?.map(p => <div className={`ww-role-item ${p.alive ? '' : 'ww-dead'}`} key={p.id}><span>{p.role.emoji}</span><div><strong>{p.name}</strong><p>{p.role.name}</p></div></div>)}</div>}
       </> : <>
+        {room.voteResult && <p className="ww-notice">ผลการตัดสิน: {room.voteResult.text}</p>}
         <h1>{room.phase === 'night' ? 'หลับตา... 🌙' : room.phase === 'morning' ? 'รุ่งเช้าแล้ว ☀️' : room.phase === 'discussion' ? 'ช่วงพูดคุย' : 'จบเกม'}</h1>
         {room.ownRole && <div className="ww-role-card"><div className="ww-role-art">{room.ownRole.emoji}</div><p className="ww-phase">YOUR SECRET ROLE</p><h2>{room.ownRole.name}</h2><p>{room.ownRole.description}</p><small>เก็บบทบาทนี้เป็นความลับ</small></div>}
         {room.phase === 'morning' && <div className="ww-summary"><strong>{room.morningSummary?.text}</strong><p className="ww-secret">ไม่มีการเปิดเผยบทบาทของผู้เสียชีวิต</p></div>}
