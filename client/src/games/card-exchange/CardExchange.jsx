@@ -249,7 +249,8 @@ function CardExchange({ onBack }) {
                 <div className="action-option"><div className="deck-stack"><CardFace hidden /></div><strong>เปลี่ยนจากกองกลาง</strong><p>สุ่มรับไพ่ใบใหม่โดยไม่เห็นหน้าไพ่</p><button className="card-primary-button" onClick={() => setShowDrawConfirm(true)}>เลือกกองกลาง <span>→</span></button></div>
                 <div className="action-option"><div className="swap-icon">⇄</div><strong>เปลี่ยนกับผู้เล่นอื่น</strong><p>เลือกคนที่ต้องการขอแลกไพ่</p><select value={selectedTarget} onChange={(event) => setSelectedTarget(event.target.value)}><option value="">เลือกผู้เล่น</option>{targetOptions.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select><button className="card-outline-button" onClick={requestExchange} disabled={!selectedTarget || busy}>ส่งคำขอแลก <span>→</span></button></div>
                 <div className="action-option keep-card-option"><div className="keep-card-icon">✓</div><strong>ใช้ไพ่ใบเดิม</strong><p>ไม่เปลี่ยนไพ่ แล้วส่งต่อเทิร์น</p><button className="card-outline-button" onClick={skipTurn} disabled={busy}>ไม่เปลี่ยนไพ่ <span>→</span></button></div>
-              </div>}
+              </div>
+            </div>}
             {!isMyTurn && !room.pendingExchange && <p className="turn-waiting">รอให้ผู้เล่นปัจจุบันเลือกเปลี่ยนไพ่...</p>}
             {errorMessage && <p className="card-error">{errorMessage}</p>}
             {notice && <p className="card-notice">{notice}</p>}
