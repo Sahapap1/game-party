@@ -33,7 +33,7 @@ function fail(ack, message) { ack({ ok: false, message }) }
 function startNight(r) {
   r.status = 'playing'; r.phase = 'night'; r.nightStep = 0
   r.actions = { werewolf: null, seer: null, bodyguard: null }
-  r.morningSummary = null; r.investigation = null; r.voteResult = null
+  r.morningSummary = null; r.investigation = null
 }
 function assign(r) {
   const shuffled = [...r.players].sort(() => Math.random() - .5)
