@@ -17,7 +17,7 @@ const winner = (r) => { const w = alive(r).filter(p => p.role === 'werewolf').le
 function state(r, id) {
   const host = r.hostId === id, me = player(r, id)
   return {
-    roomId: r.id, status: r.status, phase: r.phase, isHost: host, you: id, hostName: r.hostName,
+    roomId: r.id, status: r.status, phase: r.phase, isHost: host, you: id, hostName: r.hostName, maxPlayers: r.maxPlayers,
     players: r.players.map(p => ({ id: p.id, name: p.name, alive: p.alive, connected: p.connected, role: host ? roles[p.role] : null })),
     ownRole: host || !me ? null : roles[me.role],
     allRoles: host ? r.players.map(p => ({ id: p.id, name: p.name, role: roles[p.role], alive: p.alive })) : null,
@@ -42,9 +42,10 @@ function assign(r) {
   shuffled.forEach((p, i) => { p.role = list[i]; p.alive = true })
 }
 export function registerWerewolfHandlers(io, socket) {
-  socket.on('werewolf:host:create', ({ name } = {}, ack = () => {}) => {
+  socket.on('werewolf:host:create', ({ name, playerCount = 5 } = {}, ack = () => {}) => {
     const hostName = clean(name); if (!hostName) return fail(ack, 'กรุณาใส่ชื่อหัวห้อง')
-    const id = code(), r = { id, hostId: socket.id, hostToken: randomUUID(), hostName, players: [], status: 'lobby', phase: 'lobby' }
+    const maxPlayers = Number(playerCount); if (!Number.isInteger(maxPlayers) || maxPlayers < 4 || maxPlayers > 12) return fail(ack, 'จำนวนผู้เล่นต้องอยู่ระหว่าง 4–12 คน')
+    const id = code(), r = { id, hostId: socket.id, hostToken: randomUUID(), hostName, maxPlayers, players: [], status: 'lobby', phase: 'lobby' }
     rooms.set(id, r); socket.join(id); ack({ ok: true, roomId: id, token: r.hostToken, kind: 'host' }); broadcast(io, r)
   })
   socket.on('werewolf:player:join', ({ roomId, name } = {}, ack = () => {}) => {
@@ -52,7 +53,7 @@ export function registerWerewolfHandlers(io, socket) {
     if (!r) return fail(ack, 'ไม่พบห้องนี้')
     if (r.status !== 'lobby') return fail(ack, 'เกมเริ่มแล้ว ไม่สามารถเข้าร่วมได้')
     if (!n) return fail(ack, 'กรุณาใส่ชื่อผู้เล่น')
-    if (r.players.length >= 12) return fail(ack, 'ห้องเต็มแล้ว')
+    if (r.players.length >= r.maxPlayers) return fail(ack, 'ห้องเต็มแล้ว (' + r.maxPlayers + ' คน)')
     if (r.players.some(p => p.name.toLowerCase() === n.toLowerCase())) return fail(ack, 'ชื่อนี้มีคนใช้แล้ว')
     const p = { id: socket.id, token: randomUUID(), name: n, connected: true, alive: true, role: null }
     r.players.push(p); socket.join(r.id); ack({ ok: true, roomId: r.id, token: p.token, kind: 'player' }); broadcast(io, r)
@@ -67,7 +68,7 @@ export function registerWerewolfHandlers(io, socket) {
   socket.on('werewolf:game:start', (_, ack = () => {}) => {
     const r = find(socket.id); if (!r || r.hostId !== socket.id) return fail(ack, 'เฉพาะหัวห้องเท่านั้น')
     if (r.status !== 'lobby') return fail(ack, 'เกมเริ่มแล้ว')
-    if (r.players.length < 4) return fail(ack, 'ต้องมีผู้เล่นอย่างน้อย 4 คน (ไม่รวมหัวห้อง)')
+    if (r.players.length !== r.maxPlayers) return fail(ack, 'ต้องมีผู้เล่นครบ ' + r.maxPlayers + ' คน (ตอนนี้ ' + r.players.length + ' คน)')
     if (r.players.some(p => !p.connected)) return fail(ack, 'รอผู้เล่นทุกคนออนไลน์ก่อน')
     assign(r); startNight(r); ack({ ok: true }); broadcast(io, r)
   })

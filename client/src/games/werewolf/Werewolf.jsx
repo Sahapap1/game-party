@@ -11,7 +11,7 @@ const clear = () => { try { sessionStorage.removeItem(KEY) } catch {} }
 export default function Werewolf({ onBack }) {
   const [socket, setSocket] = useState(null), [connected, setConnected] = useState(false)
   const [screen, setScreen] = useState('entry'), [mode, setMode] = useState('host')
-  const [name, setName] = useState(''), [code, setCode] = useState('')
+  const [name, setName] = useState(''), [code, setCode] = useState(''), [playerCount, setPlayerCount] = useState(5)
   const [room, setRoom] = useState(null), [busy, setBusy] = useState(false)
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [roleCardDismissed, setRoleCardDismissed] = useState(false)
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function Werewolf({ onBack }) {
   }
   const enter = async () => {
     setBusy(true); setError('')
-    const result = mode === 'host' ? await emit('werewolf:host:create', { name }) : await emit('werewolf:player:join', { roomId: code, name })
+    const result = mode === 'host' ? await emit('werewolf:host:create', { name, playerCount }) : await emit('werewolf:player:join', { roomId: code, name })
     setBusy(false)
     if (!result?.ok) return setError(result?.message || 'เข้าห้องไม่สำเร็จ')
     const session = { roomId: result.roomId, token: result.token, kind: result.kind }
@@ -54,16 +54,16 @@ export default function Werewolf({ onBack }) {
     {screen === 'entry' && <section className="werewolf-panel">
       <p className="ww-phase">SOCIAL DEDUCTION GAME</p><h1>ใครคือ <span>หมาป่า?</span></h1><p className="ww-muted">หัวห้องเป็นผู้ดำเนินเกม ไม่ได้รับบทบาทและไม่นับเป็นผู้เล่น</p>
       <div className="ww-tabs"><button className={mode === 'host' ? 'active' : ''} onClick={() => setMode('host')}>สร้างห้อง · หัวห้อง</button><button className={mode === 'join' ? 'active' : ''} onClick={() => setMode('join')}>เข้าร่วมห้อง</button></div>
-      <div className="ww-form">{mode === 'join' && <label>รหัสห้อง<input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="รหัส 6 หลัก" inputMode="numeric" /> </label>}<label>{mode === 'host' ? 'ชื่อหัวห้อง' : 'ชื่อผู้เล่น'}<input value={name} onChange={e => setName(e.target.value)} maxLength={18} placeholder="ใส่ชื่อเล่น" /></label><button className="ww-primary" disabled={!connected || busy || !name.trim() || (mode === 'join' && code.length !== 6)} onClick={enter}>{mode === 'host' ? 'สร้างห้อง' : 'เข้าร่วมห้อง'} →</button></div>
+      <div className="ww-form">{mode === 'host' && <label>จำนวนผู้เล่น (ไม่รวมหัวห้อง)<select value={playerCount} onChange={e => setPlayerCount(Number(e.target.value))}>{Array.from({ length: 9 }, (_, i) => i + 4).map(n => <option key={n} value={n}>{n} คน</option>)}</select><small className="ww-muted">หมาป่า {playerCount >= 10 ? 3 : playerCount >= 7 ? 2 : 1} · ผู้หยั่งรู้ 1 · บอดี้การ์ด 1 · ชาวบ้าน {playerCount - (playerCount >= 10 ? 3 : playerCount >= 7 ? 2 : 1) - 2}</small></label>}{mode === 'join' && <label>รหัสห้อง<input value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="รหัส 6 หลัก" inputMode="numeric" /> </label>}<label>{mode === 'host' ? 'ชื่อหัวห้อง' : 'ชื่อผู้เล่น'}<input value={name} onChange={e => setName(e.target.value)} maxLength={18} placeholder="ใส่ชื่อเล่น" /></label><button className="ww-primary" disabled={!connected || busy || !name.trim() || (mode === 'join' && code.length !== 6)} onClick={enter}>{mode === 'host' ? 'สร้างห้อง' : 'เข้าร่วมห้อง'} →</button></div>
       {error && <p className="ww-error">{error}</p>}
     </section>}
     {screen === 'room' && room && <section className="werewolf-panel">
       <p className="ww-phase">WAITING ROOM</p><h1>{host ? 'ห้องของคุณ' : 'รอเริ่มเกม'}</h1><p className="ww-muted">ส่งรหัสนี้ให้เพื่อนเพื่อเข้าร่วม</p><button className="ww-room-code" onClick={() => navigator.clipboard?.writeText(room.roomId)}>{room.roomId}</button>
-      <p className="ww-muted">{players.length} / 12 ผู้เล่น · หัวห้อง {room.hostName}</p>
+      <p className="ww-muted">{players.length} / {room.maxPlayers || 12} ผู้เล่น · หัวห้อง {room.hostName}</p>
       <div className="ww-player-list">{players.map(p => <div className="ww-player" key={p.id}><span className="ww-avatar">{p.name.slice(0, 1)}</span><strong>{p.name}</strong><small>{p.connected ? 'ONLINE' : 'OFFLINE'}</small></div>)}</div>
-      {host ? <p className="ww-muted">หัวห้องไม่รับบทบาท · เริ่มได้เมื่อมีผู้เล่นอย่างน้อย 4 คน</p> : <p className="ww-muted">รอหัวห้องเริ่มเกม...</p>}
+      {host ? <p className="ww-muted">หัวห้องไม่รับบทบาท · ต้องมีผู้เล่นครบ {room.maxPlayers} คน และทุกคนออนไลน์ก่อนเริ่ม</p> : <p className="ww-muted">รอหัวห้องเริ่มเกม...</p>}
       {error && <p className="ww-error">{error}</p>}
-      <div className="ww-actions">{host && <button className="ww-primary" disabled={busy || players.length < 4 || players.some(p => !p.connected)} onClick={() => run('werewolf:game:start')}>เริ่มเกม →</button>}<button className="ww-action" onClick={leave}>ออกจากห้อง</button></div>
+      <div className="ww-actions">{host && <button className="ww-primary" disabled={busy || players.length !== room.maxPlayers || players.some(p => !p.connected)} onClick={() => run('werewolf:game:start')}>เริ่มเกม →</button>}<button className="ww-action" onClick={leave}>ออกจากห้อง</button></div>
     </section>}
     {screen === 'game' && room && <section className={`werewolf-panel ${room.phase === 'night' ? 'ww-night' : ''}`}>
       <p className="ww-phase">{room.phase === 'night' ? 'NIGHT PHASE' : room.phase === 'morning' ? 'MORNING' : room.phase === 'discussion' ? 'DISCUSSION' : 'GAME OVER'}</p>
